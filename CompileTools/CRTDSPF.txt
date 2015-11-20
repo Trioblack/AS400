@@ -1,0 +1,25 @@
+             PGM        PARM(&SRCLIB &SRCFIL &MLNAME &OBJLIB &RTNCD)
+
+/*変数*/
+/*ソースライブラリ*/
+             DCL        VAR(&SRCLIB) TYPE(*CHAR) LEN(10)
+/*ソースファイル*/
+             DCL        VAR(&SRCFIL) TYPE(*CHAR) LEN(10)
+/*メンバー名*/
+             DCL        VAR(&MLNAME) TYPE(*CHAR) LEN(10)
+/*オブジェクトライブラリ*/
+             DCL        VAR(&OBJLIB) TYPE(*CHAR) LEN(10)
+/*リターンコード*/
+             DCL        VAR(&RTNCD) TYPE(*CHAR) LEN(2)
+
+/*コンパイル*/
+             CRTDSPF    FILE(&OBJLIB/&MLNAME) +
+                          SRCFILE(&SRCLIB/&SRCFIL) SRCMBR(&MLNAME) +
+                          REPLACE(*YES)
+             MONMSG    MSGID(CPF7302) EXEC(DO)
+             CHGVAR    VAR(&RTNCD) VALUE('99')
+             ENDDO
+
+\ENDPGM:
+             ENDPGM
+

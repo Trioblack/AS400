@@ -1,0 +1,156 @@
+             PGM        PARM(&SRCLIB &SRCFIL &OBJLIB &OBJTYP)
+
+             DCLF       FILE(NISHILIB/PGM_LIST)
+
+/*変数*/
+/*--ソースライブラリ*/
+             DCL        VAR(&SRCLIB) TYPE(*CHAR) LEN(10)
+/*--ソースファイル*/
+             DCL        VAR(&SRCFIL) TYPE(*CHAR) LEN(10)
+/*--オブジェクトライブラリ*/
+             DCL        VAR(&OBJLIB) TYPE(*CHAR) LEN(10)
+/*--オブジェクトタイプ*/
+             DCL        VAR(&OBJTYP) TYPE(*CHAR) LEN(10)
+
+/*--全ファイル数*/
+             DCL        VAR(&ALLCNT) TYPE(*DEC) LEN(4)
+             DCL        VAR(&C_ALLCNT) TYPE(*CHAR) LEN(4)
+/*--コンパイル失敗ファイル数*/
+             DCL        VAR(&FAILCNT) TYPE(*DEC) LEN(4)
+             DCL        VAR(&C_FAILCNT) TYPE(*CHAR) LEN(4)
+/*--コンパイル成功ファイル数*/
+             DCL        VAR(&OKCNT) TYPE(*DEC) LEN(4)
+             DCL        VAR(&C_OKCNT) TYPE(*CHAR) LEN(4)
+/*--コンパイル失敗フラグ*/
+             DCL        VAR(&FAILFLG) TYPE(*LGL) LEN(1)
+
+/*--リターンコード*/
+             DCL        VAR(&RTNCD) TYPE(*CHAR) LEN(2)
+
+/*ソースファイルの検索*/
+             DSPFD      FILE(&SRCLIB/&SRCFIL) TYPE(*MBRLIST) +
+                          OUTPUT(*OUTFILE) +
+                          OUTFILE(NISHILIB/PGM_LIST) OUTMBR(*FIRST +
+                          *REPLACE)
+             MONMSG     MSGID(CPF0000)
+
+             IF         COND(&OBJLIB *EQ ' ') THEN(DO)
+             CHGVAR     VAR(&OBJLIB) VALUE(&SRCLIB)
+             ENDDO
+
+/*コンパイル処理*/
+/*--ソースファイル読込*/
+\RCVF:       RCVF
+             MONMSG     MSGID(CPF0000) EXEC(GOTO \END)
+
+             DO
+
+/*--指定種類以外はスキップ*/
+             IF         (&MLSEU2 *NE 'RPGLE' *AND +
+                         &MLSEU2 *NE 'CLP'   *AND +
+                         &MLSEU2 *NE 'PF'    *AND +
+                         &MLSEU2 *NE 'LF'    *AND +
+                         &MLSEU2 *NE 'DSPF'  *AND +
+                         &MLSEU2 *NE 'PRTF') THEN(GOTO \RCVF)
+
+             IF         COND(&OBJTYP *NE ' ' *AND &OBJTYP *NE &MLSEU2) +
+                          THEN(GOTO \RCVF)
+
+/*--前処理*/
+             CHGVAR     VAR(&RTNCD) VALUE('00')
+             CHGVAR     VAR(&ALLCNT) VALUE(&ALLCNT + 1)
+
+/*--オブジェクトタイプの判定*/
+             IF         COND(&OBJTYP *EQ 'RPGLE') THEN(GOTO \RPGLE)
+             IF         COND(&OBJTYP *EQ 'CLP') THEN(GOTO \CLP)
+             IF         COND(&OBJTYP *EQ 'PF') THEN(GOTO \PF)
+             IF         COND(&OBJTYP *EQ 'LF') THEN(GOTO \LF)
+             IF         COND(&OBJTYP *EQ 'DSPF') THEN(GOTO \DSPF)
+             IF         COND(&OBJTYP *EQ 'PRTF') THEN(GOTO \PRTF)
+
+/*--各種コンパイル*/
+\RPGLE:      IF         COND(&MLSEU2 *EQ 'RPGLE') THEN(DO)
+             CALL       PGM(CRTRPGLE) PARM(&SRCLIB &SRCFIL &MLNAME +
+                                           &OBJLIB &RTNCD)
+             IF         COND(&RTNCD *NE '00') THEN(GOTO \ERROR)
+             ENDDO
+
+\CLP:        IF         COND(&MLSEU2 *EQ 'CLP') THEN(DO)
+             CALL       PGM(CRTCLP) PARM(&SRCLIB &SRCFIL &MLNAME +
+                                         &OBJLIB &RTNCD)
+             IF         COND(&RTNCD *NE '00') THEN(GOTO \ERROR)
+             ENDDO
+
+\PF:         IF         COND(&MLSEU2 *EQ 'PF') THEN(DO)
+             CALL       PGM(CRTPF) PARM(&SRCLIB &SRCFIL &MLNAME +
+                                        &OBJLIB &RTNCD)
+             IF         COND(&RTNCD *NE '00') THEN(GOTO \ERROR)
+             ENDDO
+
+\LF:         IF         COND(&MLSEU2 *EQ 'LF') THEN(DO)
+             CALL       PGM(CRTLF) PARM(&SRCLIB &SRCFIL &MLNAME +
+                                        &OBJLIB &RTNCD)
+             IF         COND(&RTNCD *NE '00') THEN(GOTO \ERROR)
+             ENDDO
+
+\DSPF:       IF         COND(&MLSEU2 *EQ 'DSPF') THEN(DO)
+             CALL       PGM(CRTDSPF) PARM(&SRCLIB &SRCFIL &MLNAME +
+                                          &OBJLIB &RTNCD)
+             IF         COND(&RTNCD *NE '00') THEN(GOTO \ERROR)
+             ENDDO
+
+\PRTF:       IF         COND(&MLSEU2 *EQ 'PRTF') THEN(DO)
+             CALL       PGM(CRTPRTF) PARM(&SRCLIB &SRCFIL &MLNAME +
+                                          &OBJLIB &RTNCD)
+             IF         COND(&RTNCD *NE '00') THEN(GOTO \ERROR)
+             ENDDO
+
+             ENDDO
+             GOTO       \RCVF
+
+
+/*--エラー時の処理*/
+\ERROR:      IF         COND(&FAILFLG *EQ '0') THEN(DO)
+             SNDPGMMSG  ('----コンパイルに失敗----') MSGTYPE(*COMP)
+             ENDDO
+             SNDPGMMSG  (' ** '|| &MLNAME) MSGTYPE(*COMP)
+             CHGVAR     VAR(&FAILCNT) VALUE(&FAILCNT + 1)
+             CHGVAR     VAR(&FAILFLG) VALUE('1')
+             GOTO       \RCVF
+
+/*終了処理*/
+\END:
+             CHGVAR    VAR(&C_ALLCNT) VALUE(&ALLCNT)
+             CHGVAR    VAR(&C_FAILCNT) VALUE(&FAILCNT)
+             CHGVAR    VAR(&OKCNT) VALUE(&ALLCNT - &FAILCNT)
+             CHGVAR    VAR(&C_OKCNT) VALUE(&OKCNT)
+
+/*コンパイル０件*/
+             IF        COND(&ALLCNT *EQ 0) THEN(DO)
+             SNDPGMMSG ('コンパイル対象のメンバーはありませんでした。')  +
+                       MSGTYPE(*COMP)
+             GOTO      \ENDPGM
+             ENDDO
+
+/*コンパイル完了*/
+             IF        COND(&FAILCNT *GT 0) THEN(DO)
+             SNDPGMMSG ('--------------------------')
+             ENDDO
+
+             SNDPGMMSG (&SRCLIB || '/' || &SRCFIL || +
+                         'のメンバーをコンパイルしました。') MSGTYPE(*COMP)
+             SNDPGMMSG ('出力先は' || &OBJLIB || 'です。' ) MSGTYPE(*COMP)
+
+             SNDPGMMSG ('コンパイル結果') MSGTYPE(*COMP)
+             SNDPGMMSG ('　　成功：' || &C_OKCNT) MSGTYPE(*COMP)
+             SNDPGMMSG ('　　失敗：' || &C_FAILCNT) MSGTYPE(*COMP)
+             SNDPGMMSG ('　　合計：' || &C_ALLCNT) MSGTYPE(*COMP)
+
+             SNDPGMMSG ('* * * * *コンパイルが終了しました* * * * *') +
+                          MSGTYPE(*COMP)
+
+\ENDPGM:
+             DSPJOBLOG
+
+             ENDPGM
+
